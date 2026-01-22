@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>App Quay Số - Danh Sách 25 Nhân Viên</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; margin: 0; }
+        .container { display: flex; gap: 20px; max-width: 1200px; width: 100%; height: 95vh; }
+        
+        .box { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; }
+        .setup-section { flex: 1; }
+        .play-section { flex: 1.2; text-align: center; justify-content: center; background: linear-gradient(to bottom, #ffffff, #f1f2f6); }
+        .history-section { flex: 1; }
+
+        h3 { margin-top: 0; color: #2f3542; border-bottom: 2px solid #3742fa; padding-bottom: 10px; text-transform: uppercase; font-size: 16px; }
+
+        /* Bảng nhập liệu */
+        .table-wrapper { flex-grow: 1; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #eee; padding: 10px; text-align: center; font-size: 14px; }
+        th { background: #3742fa; color: white; position: sticky; top: 0; }
+        td[contenteditable="true"] { background: #fff; transition: 0.2s; }
+        td[contenteditable="true"]:focus { background: #e8f0fe; outline: none; box-shadow: inset 0 0 5px rgba(55,66,250,0.3); }
+
+        /* Nút bấm */
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-add { background: #2f3542; color: white; margin-top: 10px; }
+        .btn-draw { background: #ff4757; color: white; width: 80%; padding: 20px; font-size: 24px; border-radius: 50px; margin-top: 30px; box-shadow: 0 4px 15px rgba(255,71,87,0.4); }
+        .btn-draw:hover { transform: scale(1.05); background: #ff6b81; }
+        .btn-draw:disabled { background: #ced4da; box-shadow: none; transform: none; }
+        .btn-delete { background: #dfe4ea; color: #ff4757; padding: 4px 10px; }
+
+        /* Kết quả */
+        #display-num { font-size: 120px; font-weight: bold; color: #2f3542; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.1); }
+        #display-name { font-size: 28px; color: #3742fa; font-weight: bold; min-height: 40px; margin-bottom: 20px; }
+        
+        /* Lịch sử */
+        .history-table tr:first-child td { background: #e8f0fe; font-weight: bold; }
+        .badge-turn { background: #747d8c; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="box setup-section">
+        <h3>Danh sách người quay</h3>
+        <div class="table-wrapper">
+            <table id="inputTable">
+                <thead>
+                    <tr>
+                        <th width="20%">Số</th>
+                        <th width="60%">Họ và Tên</th>
+                        <th width="20%">Xóa</th>
+                    </tr>
+                </thead>
+                <tbody id="inputBody">
+                    </tbody>
+            </table>
+        </div>
+        <button class="btn btn-add" onclick="addRow()">+ Thêm người</button>
+    </div>
+
+    <div class="box play-section">
+        <h3>Vòng quay may mắn</h3>
+        <div id="display-num">--</div>
+        <div id="display-name">Bấm để bắt đầu</div>
+        <button class="btn-draw" id="drawBtn" onclick="startRolling()">QUAY NGAY</button>
+        <p id="remaining-count" style="margin-top: 15px; color: #747d8c;">Còn lại: 26 người</p>
+    </div>
+
+    <div class="box history-section">
+        <h3>Lịch sử trúng thưởng (Lượt 1 → Sau)</h3>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Lượt</th>
+                        <th>Số</th>
+                        <th>Tên</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody"></tbody>
+            </table>
+        </div>
+        <button class="btn" style="margin-top:10px; background:#dfe4ea" onclick="resetAll()">Làm mới app</button>
+    </div>
+</div>
+
+<script>
+    const defaultData = [
+        [1, "Trần Thị Ngọc Hoa"], [2, "Phan Xuân Phúc"], [3, "Lê Thị Mai Hồng"], 
+        [4, "Nguyễn Thị Trang"], [5, "Hoàng Thị Thuận"], [6, "Phạm Thị Thanh Tâm"], 
+        [7, "Lê Vỏ Quốc Dũng"], [8, "Đặng Thị Hồng Hải"], [9, "Nguyễn Thị Mến"], 
+        [10, "Nguyễn Thị Tú"], [11, "Nguyễn Thị Thanh Nhàn"], [12, "Nguyễn Thị Thiên Nga"], 
+        [13, "Đoàn Thị Ngọc Oanh"], [14, "Hoàng Thị Lý"], [15, "Đào Thị Thùy"], 
+        [16, "Vỏ Thị Vân"], [17, "Nguyễn Thị Hải"], [18, "Vỏ Thùy Linh Giang"], 
+        [19, "Đỗ Thị Lan"], [20, "Đặng Thị Thùy Trang"], [21, "Nguyễn Thị Thảo"], 
+        [22, "Phạm Thị Luyền"], [23, "Hoàng Thị Na"], [24, "Nguyễn Thị Thu Thủy"], 
+        [25, "Vỏ Thị Thu Trang"], [26, "Hồ Thị Thùy Dương"]
+    ];
+
+    let remainingPeople = [];
+    let turnCount = 0;
+
+    // Đổ dữ liệu ban đầu vào bảng
+    function initTable() {
+        const tbody = document.getElementById("inputBody");
+        tbody.innerHTML = "";
+        defaultData.forEach(item => {
+            const row = tbody.insertRow();
+            row.innerHTML = `<td contenteditable="true">${item[0]}</td><td contenteditable="true">${item[1]}</td><td><button class="btn-delete" onclick="this.parentElement.parentElement.remove()">x</button></td>`;
+        });
+        updateCount();
+    }
+
+    function addRow() {
+        const tbody = document.getElementById("inputBody");
+        const row = tbody.insertRow();
+        row.innerHTML = `<td contenteditable="true"></td><td contenteditable="true"></td><td><button class="btn-delete" onclick="this.parentElement.parentElement.remove()">x</button></td>`;
+    }
+
+    function updateCount() {
+        const rows = document.querySelectorAll("#inputTable tbody tr").length;
+        document.getElementById("remaining-count").innerText = `Còn lại: ${rows} người`;
+    }
+
+    function startRolling() {
+        if (remainingPeople.length === 0) {
+            const rows = document.querySelectorAll("#inputTable tbody tr");
+            rows.forEach(row => {
+                const cells = row.querySelectorAll("td");
+                remainingPeople.push({ num: cells[0].innerText, name: cells[1].innerText });
+            });
+            if (remainingPeople.length === 0) return alert("Danh sách trống!");
+            remainingPeople.sort(() => Math.random() - 0.5);
+        }
+
+        const btn = document.getElementById('drawBtn');
+        btn.disabled = true;
+
+        let spin = 0;
+        let timer = setInterval(() => {
+            document.getElementById('display-num').innerText = Math.floor(Math.random() * 50) + 1;
+            spin++;
+            if (spin > 20) {
+                clearInterval(timer);
+                const winner = remainingPeople.pop();
+                turnCount++;
+
+                document.getElementById('display-num').innerText = winner.num;
+                document.getElementById('display-name').innerText = winner.name;
+
+                // Cập nhật lịch sử
+                const hBody = document.getElementById('historyBody');
+                const row = hBody.insertRow();
+                row.innerHTML = `<td><span class="badge-turn">${turnCount}</span></td><td style="color:#ff4757; font-weight:bold">${winner.num}</td><td>${winner.name}</td>`;
+                hBody.scrollTop = hBody.scrollHeight;
+
+                btn.disabled = false;
+                updateCountFromRemaining();
+            }
+        }, 50);
+    }
+
+    function updateCountFromRemaining() {
+        document.getElementById("remaining-count").innerText = `Còn lại: ${remainingPeople.length} người`;
+        if (remainingPeople.length === 0) {
+            document.getElementById('drawBtn').innerText = "KẾT THÚC";
+            document.getElementById('drawBtn').disabled = true;
+        } else {
+            document.getElementById('drawBtn').innerText = "QUAY LƯỢT TIẾP";
+        }
+    }
+
+    function resetAll() {
+        if(confirm("Làm mới toàn bộ app và danh sách?")) location.reload();
+    }
+
+    initTable();
+</script>
+
+</body>
+</html>
